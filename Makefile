@@ -1,12 +1,16 @@
 .PHONY: all clean dist install
 
-INCLUDES=-I/alt/local/include
-LIBS=-L/alt/local/lib -lavcore -lavcodec -lavformat -lavutil -lmp3lame -lvpx -lx264 -lz -lfaac -lswscale -lbz2
+FFMPEG=$(shell which ffmpeg)
+BINDIR=$(shell dirname $(FFMPEG))
+PREFIX=$(shell dirname $(BINDIR))
+
+INCLUDES=-I$(PREFIX)/include
+LIBS=-L$(PREFIX)/lib -lavcore -lavcodec -lavformat -lavutil -lmp3lame -lvpx -lx264 -lz -lfaac -lswscale -lbz2
 LDFLAGS=$(LIBS)
 CPPFLAGS=-Wall -O3 $(INCLUDES)
 OBJS=ts-split.o
 PROG=ts-split
-INSTALL_PREFIX=/alt/local
+INSTALL_PREFIX=$(PREFIX)
 
 all: $(PROG) avcodec_sample
 
