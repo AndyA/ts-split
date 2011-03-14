@@ -342,6 +342,7 @@ tssplit( const char *input_name, const char *output_name ) {
   tss_input in;
   tss_output out;
   int seq = 0;
+  int done_output = 0;
 
   if ( !strchr( output_name, '%' ) ) {
     die( "No conversion format in output filename" );
@@ -361,15 +362,18 @@ tssplit( const char *input_name, const char *output_name ) {
     si = pkt.stream_index;
     if ( si < in.file->nb_streams && !in.st[si]->discard ) {
 
-      if ( in.st[si]->st->codec->codec_type == AVMEDIA_TYPE_VIDEO
+      if ( done_output
+           && in.st[si]->st->codec->codec_type == AVMEDIA_TYPE_VIDEO
            && pkt.flags & AV_PKT_FLAG_KEY ) {
         end_output( &out );
         start_output( &out, &in, output_name, seq++ );
+        done_output = 0;
       }
 
       if ( av_interleaved_write_frame( out.file, &pkt ) < 0 ) {
         die( "Frame write failed" );
       }
+      done_output++;
     }
 
     av_free_packet( &pkt );
