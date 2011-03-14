@@ -16,17 +16,13 @@ INSTALL_PREFIX=$(PREFIX)
 LDFLAGS+=-lgcov
 CPPFLAGS+=-fprofile-arcs -ftest-coverage
 
-all: $(PROG) avcodec_sample
+all: $(PROG)
 
 $(PROG): $(OBJS)
-
-# avcodec_sample: avcodec_sample.o
 
 clean:
 	rm -rf $(OBJS) $(PROG) *.dSYM $(PROG)-*.tar.gz
 	rm -f *.gcov *.gcda *.gcno
-
-
 
 install: $(PROG)
 	mkdir -p $(INSTALL_PREFIX)/bin
