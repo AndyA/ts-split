@@ -5,16 +5,16 @@ BINDIR=$(shell dirname $(FFMPEG))
 PREFIX=$(shell dirname $(BINDIR))
 
 INCLUDES=-I$(PREFIX)/include
-LIBS=-L$(PREFIX)/lib -lavcore -lavcodec -lavformat -lavutil -lmp3lame -lvpx -lx264 -lz -lfaac -lswscale -lbz2
-LDFLAGS=$(LIBS)
-# CPPFLAGS=-Wall -O3 $(INCLUDES)
-CPPFLAGS=-Wall -g $(INCLUDES)
+LIBS=-lavcore -lavcodec -lavformat -lavutil -lmp3lame -lvpx -lx264 -lz -lfaac -lswscale -lbz2
+LDFLAGS=-L$(PREFIX)/lib $(LIBS)
+CPPFLAGS=-Wall -O3 $(INCLUDES)
+# CPPFLAGS=-Wall -g $(INCLUDES)
 OBJS=ts-split.o
 PROG=ts-split
 INSTALL_PREFIX=$(PREFIX)
 
-LDFLAGS+=-lgcov
-CPPFLAGS+=-fprofile-arcs -ftest-coverage
+# LDFLAGS+=-lgcov
+# CPPFLAGS+=-fprofile-arcs -ftest-coverage
 
 all: $(PROG)
 
