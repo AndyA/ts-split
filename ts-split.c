@@ -420,7 +420,7 @@ main( int argc, char **argv ) {
   avcodec_register_all(  );
   av_register_all(  );
 
-  while ( ch = getopt_long( argc, argv, "ahvVF:", opts, NULL ), ch != -1 ) {
+  while ( ch = getopt_long( argc, argv, "hvVC:", opts, NULL ), ch != -1 ) {
     switch ( ch ) {
     case 'v':
       verbose++;
