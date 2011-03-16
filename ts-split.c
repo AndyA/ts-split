@@ -417,6 +417,7 @@ main( int argc, char **argv ) {
     {NULL, 0, NULL, 0}
   };
 
+  av_log_set_level( AV_LOG_ERROR );
   avcodec_register_all(  );
   av_register_all(  );
 
