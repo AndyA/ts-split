@@ -56,6 +56,17 @@ die( const char *msg, ... ) {
   exit( 1 );
 }
 
+static void
+mention( const char *msg, ... ) {
+  if ( verbose ) {
+    va_list ap;
+    va_start( ap, msg );
+    vprintf( msg, ap );
+    printf( "\n" );
+    va_end( ap );
+  }
+}
+
 static void *
 mallocz( size_t size ) {
   void *p = av_mallocz( size );
@@ -326,6 +337,7 @@ static void
 start_output( tss_output * out, tss_input * in, const char *name, int seq ) {
   char tmp_name[512];
   sprintf( tmp_name, name, seq );
+  mention( "Writing %s", tmp_name );
   set_output( out, in, tmp_name );
   av_metadata_copy( &out->file->metadata,
                     in->file->metadata, AV_METADATA_DONT_OVERWRITE );
@@ -355,6 +367,8 @@ tssplit( const char *input_name, const char *output_name ) {
   if ( !strchr( output_name, '%' ) ) {
     die( "No conversion format in output filename" );
   }
+
+  mention( "Splitting %s", input_name );
 
   set_input( &in, input_name );
   start_output( &out, &in, output_name, seq++ );
