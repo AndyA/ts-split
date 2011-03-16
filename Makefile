@@ -1,4 +1,4 @@
-.PHONY: all clean dist install
+.PHONY: all clean install tags
 
 FFMPEG=$(shell which ffmpeg)
 BINDIR=$(shell dirname $(FFMPEG))
@@ -30,3 +30,5 @@ install: $(PROG)
 	mkdir -p $(INSTALL_PREFIX)/bin
 	cp $(PROG) $(INSTALL_PREFIX)/bin
 
+tags:
+	ctags -R ../ffmpeg/ffmpeg .
