@@ -2,6 +2,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <getopt.h>
 #include <limits.h>
 #include <math.h>
 #include <stdarg.h>
@@ -12,12 +13,16 @@
 #include "libavformat/avformat.h"
 #include "libavutil/avstring.h"
 
+#define PROG "ts-split"
+#define VERSION "0.01"
+#define CHUNK 1                 /* default # gops per chunk */
+
 typedef struct {
   AVStream *st;
   int discard;
 } input_stream;
 
-typedef struct output_stream {
+typedef struct {
   AVStream *st;
   input_stream *ist;
 } output_stream;
@@ -31,6 +36,9 @@ typedef struct {
   AVFormatContext *file;
   output_stream **st;
 } tss_output;
+
+static int verbose = 0;
+static int chunk_size = CHUNK;
 
 static float mux_preload = 0.5;
 static float mux_max_delay = 0.7;
@@ -76,7 +84,6 @@ set_input_file( const char *name ) {
     name = "pipe:";
   }
 
-  /* get default parameters from command line */
   ic = alloc_context(  );
 
   memset( ap, 0, sizeof( *ap ) );
@@ -89,7 +96,6 @@ set_input_file( const char *name ) {
   ic->subtitle_codec_id = CODEC_ID_NONE;
   ic->flags |= AVFMT_FLAG_NONBLOCK;
 
-  /* open the input file with generic libav function */
   if ( av_open_input_file( &ic, name, NULL, 0, ap ) < 0 ) {
     die( "Can't open \"%s\"", name );
   }
@@ -338,7 +344,7 @@ end_output( tss_output * out ) {
   free_output( out );
 }
 
-static int
+static void
 tssplit( const char *input_name, const char *output_name ) {
   tss_input in;
   tss_output out;
@@ -382,23 +388,66 @@ tssplit( const char *input_name, const char *output_name ) {
 
   end_output( &out );
   free_input( &in );
+}
 
-  return 0;
+static void
+usage( void ) {
+  fprintf( stderr, "Usage: " PROG " [options] <in.ts> <out%%03d.ts>\n\n"
+           "Options:\n"
+           "  -C<n>,  --chunk=<n>      Number of gops per chunk (1)\n"
+           "  -V,     --version        See version number\n"
+           "  -v,     --verbose        Verbose output\n"
+           "  -h,     --help           See this text\n" );
+  exit( 1 );
 }
 
 int
 main( int argc, char **argv ) {
-  int rc;
-  av_log_set_flags( AV_LOG_SKIP_REPEATED );
+  int ch;
+
+  static struct option opts[] = {
+    {"chunk", required_argument, NULL, 'C'},
+    {"help", no_argument, NULL, 'h'},
+    {"verbose", no_argument, NULL, 'v'},
+    {"version", no_argument, NULL, 'V'},
+    {NULL, 0, NULL, 0}
+  };
 
   avcodec_register_all(  );
   av_register_all(  );
 
-  if ( argc < 3 ) {
-    die( "Usage: ts-split infile outfile" );
+  while ( ch = getopt_long( argc, argv, "ahvVF:", opts, NULL ), ch != -1 ) {
+    switch ( ch ) {
+    case 'v':
+      verbose++;
+      break;
+    case 'V':
+      printf( "%s %s\n", PROG, VERSION );
+      return 0;
+    case 'C':
+      {
+        char *ep;
+        chunk_size = strtod( optarg, &ep );
+        if ( *ep ) {
+          die( "Bad chunk size" );
+        }
+      }
+    case 0:
+      break;
+    case 'h':
+    default:
+      usage(  );
+    }
   }
 
-  rc = tssplit( argv[1], argv[2] );
+  argc -= optind;
+  argv += optind;
 
-  return rc < 0 ? 1 : 0;
+  if ( argc != 2 ) {
+    usage(  );
+  }
+
+  tssplit( argv[0], argv[1] );
+
+  return 0;
 }
