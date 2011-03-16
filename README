@@ -1,5 +1,5 @@
-HLS (HTTP Live Streaming) - the HTTP streaming technology used by iOS
-devices represents a video as a series of chunks each of which must
+HLS (HTTP Live Streaming - the HTTP streaming technology used by iOS
+devices) represents a video as a series of chunks each of which must
 start on a GOP boundary.
 
 This program accepts as input an MPEG 2 transport stream and splits it
