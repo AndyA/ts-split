@@ -360,6 +360,35 @@ end_output( tss_output * out ) {
   free_output( out );
 }
 
+/* Verify that the output filename contains a single printf-style format
+ * specifier and that the specifier is of the form %[0-9]*[diouxX].
+ */
+static int
+valid_format_string( const char *s ) {
+  int c, got_fmt = 0;
+  static const char *int_spec = "diouxX";
+
+  while ( ( c = *s++ ) ) {
+    if ( c == '%' ) {
+      if ( *s == '%' ) {        /* %% escape */
+        s++;
+        continue;
+      }
+
+      /* optional field width specifier */
+      while ( isdigit( *s ) ) { /* %NNN */
+        s++;
+      }
+      if ( got_fmt || !*s || !strchr( int_spec, *s ) ) {
+        return 0;
+      }
+      got_fmt++;
+    }
+  }
+
+  return got_fmt;
+}
+
 static void
 tssplit( const char *input_name, const char *output_name ) {
   tss_input in;
@@ -368,8 +397,8 @@ tssplit( const char *input_name, const char *output_name ) {
   int done_output = 0;
   int gop_count = 0;
 
-  if ( !strchr( output_name, '%' ) ) {
-    die( "No conversion format in output filename" );
+  if ( !valid_format_string( output_name ) ) {
+    die( "Invalid or missing conversion format in output filename" );
   }
 
   mention( "Splitting %s", input_name );
