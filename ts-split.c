@@ -335,10 +335,14 @@ free_output( tss_output * out ) {
 
 static void
 start_output( tss_output * out, tss_input * in, const char *name, int seq ) {
-  char tmp_name[512];
-  sprintf( tmp_name, name, seq );
-  mention( "Writing %s", tmp_name );
-  set_output( out, in, tmp_name );
+  char *tmpn;
+
+  asprintf( &tmpn, name, seq );
+  mention( "Writing %s", tmpn );
+
+  set_output( out, in, tmpn );
+  free( tmpn );
+
   av_metadata_copy( &out->file->metadata,
                     in->file->metadata, AV_METADATA_DONT_OVERWRITE );
 
