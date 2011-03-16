@@ -1,3 +1,10 @@
+*.dSYM
+*.gcda
+*.gcno
+*.gcov
+*.o
 *.ts
 .*.swp
 Session.vim
+tags
+ts-split
