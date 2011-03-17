@@ -20,6 +20,7 @@
 #define PROG "ts-split"
 #define VERSION "0.01"
 #define CHUNK 1                 /* default # gops per chunk */
+#define THREAD_COUNT 1
 
 typedef struct {
   AVStream *st;
@@ -46,8 +47,6 @@ static int chunk_size = CHUNK;
 
 static float mux_preload = 0.5;
 static float mux_max_delay = 0.7;
-
-static int thread_count = 1;
 
 static void
 die( const char *msg, ... ) {
@@ -131,7 +130,7 @@ set_input_file( const char *name ) {
   for ( i = 0; i < ic->nb_streams; i++ ) {
     AVStream *st = ic->streams[i];
     AVCodecContext *dec = st->codec;
-    avcodec_thread_init( dec, thread_count );
+    avcodec_thread_init( dec, THREAD_COUNT );
   }
 
   return ic;
@@ -151,7 +150,7 @@ new_stream( AVFormatContext * oc, int type ) {
   AVStream *st = alloc_stream( oc, oc->nb_streams < 0 );
   st->stream_copy = 1;
   avcodec_get_context_defaults3( st->codec, NULL );
-  avcodec_thread_init( st->codec, thread_count );
+  avcodec_thread_init( st->codec, THREAD_COUNT );
   st->codec->codec_type = type;
 }
 
