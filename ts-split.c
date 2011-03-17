@@ -1,11 +1,14 @@
 /* ts-split.c */
 
+#define _GNU_SOURCE
+
 #include <ctype.h>
 #include <errno.h>
 #include <getopt.h>
 #include <limits.h>
 #include <math.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -67,11 +70,16 @@ mention( const char *msg, ... ) {
   }
 }
 
+static void
+oom( void ) {
+  die( "Out of memory" );
+}
+
 static void *
 mallocz( size_t size ) {
   void *p = av_mallocz( size );
   if ( !p ) {
-    die( "Out of memory" );
+    oom(  );
   }
   return p;
 }
@@ -80,7 +88,7 @@ static AVFormatContext *
 alloc_context( void ) {
   AVFormatContext *c = avformat_alloc_context(  );
   if ( !c ) {
-    die( "Out of memory" );
+    oom(  );
   }
   return c;
 }
@@ -337,7 +345,9 @@ static void
 start_output( tss_output * out, tss_input * in, const char *name, int seq ) {
   char *tmpn;
 
-  asprintf( &tmpn, name, seq );
+  if ( asprintf( &tmpn, name, seq ) < 0 ) {
+    oom(  );
+  }
   mention( "Writing %s", tmpn );
 
   set_output( out, in, tmpn );
