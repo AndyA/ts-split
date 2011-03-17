@@ -229,11 +229,13 @@ set_output( tss_output * out, tss_input * in, const char *name ) {
     ost->ist = NULL;
 
     int best_nb_frames = -1;
+    ost->ist = NULL;
     for ( j = 0; j < in->file->nb_streams; j++ ) {
       ist = in->st[j];
       if ( ist->discard && ist->st->discard != AVDISCARD_ALL &&
            ist->st->codec->codec_type == ost->st->codec->codec_type ) {
-        if ( best_nb_frames < ist->st->codec_info_nb_frames ) {
+        if ( ost->ist == NULL
+             || best_nb_frames < ist->st->codec_info_nb_frames ) {
           best_nb_frames = ist->st->codec_info_nb_frames;
           ost->ist = ist;
         }
