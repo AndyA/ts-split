@@ -15,6 +15,7 @@
 
 #include "libavformat/avformat.h"
 #include "libavutil/avstring.h"
+#include "libavutil/avutil.h"
 
 #define PROG "ts-split"
 #define VERSION "0.01"
@@ -155,9 +156,10 @@ new_stream( AVFormatContext * oc, int type ) {
 }
 
 static AVFormatContext *
-set_output_file( const char *name ) {
+set_output_file( const char *name, tss_input * in ) {
   AVFormatContext *oc;
-  int err;
+  enum AVMediaType codec_type;
+  int i, err, nfound;
   AVFormatParameters params, *ap = &params;
   AVOutputFormat *file_oformat;
 
@@ -173,8 +175,18 @@ set_output_file( const char *name ) {
   oc->oformat = file_oformat;
   av_strlcpy( oc->filename, name, sizeof( oc->filename ) );
 
-  new_stream( oc, AVMEDIA_TYPE_VIDEO );
-  new_stream( oc, AVMEDIA_TYPE_AUDIO );
+  nfound = 0;
+  for ( i = 0; i < in->file->nb_streams; i++ ) {
+    codec_type = in->st[i]->st->codec->codec_type;
+    if ( codec_type == AVMEDIA_TYPE_VIDEO
+         || codec_type == AVMEDIA_TYPE_AUDIO ) {
+      new_stream( oc, codec_type );
+      nfound++;
+    }
+  }
+  if ( !nfound ) {
+    die( "No streams found in input" );
+  }
 
   oc->timestamp = 0;
 
@@ -215,7 +227,7 @@ set_output( tss_output * out, tss_input * in, const char *name ) {
   input_stream *ist;
   AVCodecContext *codec, *icodec;
 
-  out->file = set_output_file( name );
+  out->file = set_output_file( name, in );
 
   for ( i = 0; i < in->file->nb_streams; i++ ) {
     in->st[i]->discard = 1;
