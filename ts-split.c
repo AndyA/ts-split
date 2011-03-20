@@ -502,7 +502,7 @@ main( int argc, char **argv ) {
     case 'C':
       {
         char *ep;
-        chunk_size = strtod( optarg, &ep );
+        chunk_size = ( int ) strtol( optarg, &ep, 10 );
         if ( *ep ) {
           die( "Bad chunk size" );
         }
