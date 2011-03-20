@@ -44,6 +44,7 @@ typedef struct {
 
 static int verbose = 0;
 static int chunk_size = CHUNK;
+static char *input_format = NULL;
 
 static float mux_preload = 0.5;
 static float mux_max_delay = 0.7;
@@ -94,7 +95,7 @@ alloc_context( void ) {
 }
 
 static AVFormatContext *
-set_input_file( const char *name ) {
+set_input_file( const char *name, AVInputFormat * fmt ) {
   AVFormatContext *ic;
   AVFormatParameters params, *ap = &params;
   int i, ret;
@@ -115,7 +116,7 @@ set_input_file( const char *name ) {
   ic->subtitle_codec_id = CODEC_ID_NONE;
   ic->flags |= AVFMT_FLAG_NONBLOCK;
 
-  if ( av_open_input_file( &ic, name, NULL, 0, ap ) < 0 ) {
+  if ( av_open_input_file( &ic, name, fmt, 0, ap ) < 0 ) {
     die( "Can't open \"%s\"", name );
   }
 
@@ -205,11 +206,11 @@ set_output_file( const char *name, tss_input * in ) {
 }
 
 static void
-set_input( tss_input * in, const char *name ) {
+set_input( tss_input * in, const char *name, AVInputFormat * fmt ) {
   int i, nb_istreams;
   input_stream *ist;
 
-  in->file = set_input_file( name );
+  in->file = set_input_file( name, fmt );
   nb_istreams = in->file->nb_streams;
   in->st = mallocz( nb_istreams * sizeof( input_stream * ) );
   for ( i = 0; i < nb_istreams; i++ ) {
@@ -413,12 +414,14 @@ valid_format_string( const char *s ) {
 }
 
 static void
-tssplit( const char *input_name, const char *output_name ) {
+tssplit( const char *input_name, const char *output_name,
+         const char *fmt_name ) {
   tss_input in;
   tss_output out;
   int seq = 0;
   int done_output = 0;
   int gop_count = 0;
+  AVInputFormat *fmt = NULL;
 
   if ( !valid_format_string( output_name ) ) {
     die( "Invalid or missing conversion format in output filename" );
@@ -426,7 +429,11 @@ tssplit( const char *input_name, const char *output_name ) {
 
   mention( "Splitting %s", input_name );
 
-  set_input( &in, input_name );
+  if ( fmt_name && !( fmt = av_find_input_format( fmt_name ) ) ) {
+    die( "Couldn't find input format \"%s\"", fmt_name );
+  }
+
+  set_input( &in, input_name, fmt );
   start_output( &out, &in, output_name, seq++ );
 
   for ( ;; ) {
@@ -468,10 +475,11 @@ static void
 usage( void ) {
   fprintf( stderr, "Usage: " PROG " [options] <in.ts> <out%%03d.ts>\n\n"
            "Options:\n"
-           "  -C<n>,  --chunk=<n>      Number of gops per chunk (1)\n"
-           "  -V,     --version        See version number\n"
-           "  -v,     --verbose        Verbose output\n"
-           "  -h,     --help           See this text\n" );
+           "  -C<n>,   --chunk=<n>      Number of gops per chunk (1)\n"
+           "  -F<fmt>, --format=<fmt>   Input format (see ffmpeg -formats)\n"
+           "  -V,      --version        See version number\n"
+           "  -v,      --verbose        Verbose output\n"
+           "  -h,      --help           See this text\n" );
   exit( 1 );
 }
 
@@ -481,6 +489,7 @@ main( int argc, char **argv ) {
 
   static struct option opts[] = {
     {"chunk", required_argument, NULL, 'C'},
+    {"format", required_argument, NULL, 'F'},
     {"help", no_argument, NULL, 'h'},
     {"verbose", no_argument, NULL, 'v'},
     {"version", no_argument, NULL, 'V'},
@@ -507,6 +516,10 @@ main( int argc, char **argv ) {
           die( "Bad chunk size" );
         }
       }
+      break;
+    case 'F':
+      input_format = optarg;
+      break;
     case 0:
       break;
     case 'h':
@@ -522,7 +535,7 @@ main( int argc, char **argv ) {
     usage(  );
   }
 
-  tssplit( argv[0], argv[1] );
+  tssplit( argv[0], argv[1], input_format );
 
   return 0;
 }
