@@ -6,9 +6,9 @@ PREFIX=$(shell dirname $(BINDIR))
 INCDIR=$(PREFIX)/include
 LIBDIR=$(PREFIX)/lib
 
-INCLUDES=-I$(INCDIR)
-LIBS=-lavcore -lavcodec -lavformat -lavutil -lmp3lame -lvpx -lx264 -lz -lfaac -lswscale -lbz2
-LDFLAGS=-L$(LIBDIR) $(LIBS)
+INCLUDES=-I$(INCDIR) -I/opt/local/include 
+LIBS=-lavcore -lavcodec -lavformat -lavutil -lmp3lame -lvpx -lx264 -lz -lfaac -lswscale -lbz2 -lgcrypt
+LDFLAGS=-L/opt/local/lib $(LIBS) -L$(LIBDIR) 
 CPPFLAGS=-Wall -O3 $(INCLUDES)
 # CPPFLAGS=-Wall -g $(INCLUDES)
 OBJS=ts-split.o
