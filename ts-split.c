@@ -4,6 +4,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <gcrypt.h>
 #include <getopt.h>
 #include <limits.h>
 #include <math.h>
@@ -21,6 +22,8 @@
 #define VERSION "0.01"
 #define CHUNK 1                 /* default # gops per chunk */
 #define THREAD_COUNT 1
+
+#define HASH_ALGO GCRY_MD_SHA1
 
 typedef struct {
   AVStream *st;
@@ -43,6 +46,7 @@ typedef struct {
 } tss_output;
 
 static int verbose = 0;
+static int debug = 0;
 static int chunk_size = CHUNK;
 
 static float mux_preload = 0.5;
@@ -412,6 +416,39 @@ valid_format_string( const char *s ) {
   return got_fmt;
 }
 
+static char *
+hash( const void *data, size_t size ) {
+  unsigned char *hb;
+  char *out, *p;
+  int i, hash_len = gcry_md_get_algo_dlen( HASH_ALGO );
+
+  hb = mallocz( hash_len );
+  out = p = mallocz( sizeof( char ) * ( ( hash_len * 2 ) + 1 ) );
+
+  gcry_md_hash_buffer( HASH_ALGO, hb, data, size );
+
+  for ( i = 0; i < hash_len; i++, p += 2 ) {
+    snprintf( p, 3, "%02x", hb[i] );
+  }
+
+  free( hb );
+
+  return out;
+}
+
+static void
+dump_packet( const AVPacket * p ) {
+  char *hc = hash( p->data, p->size );
+  printf( "pts=%lld, dts=%lld, size=%lld, stream_index=%lld,\n",
+          ( long long ) p->pts, ( long long ) p->dts,
+          ( long long ) p->size, ( long long ) p->stream_index );
+  printf( "flags=%08x, duration=%d, pos=%lld, convergence_duration=%lld\n",
+          p->flags, p->duration, ( long long ) p->pos,
+          ( long long ) p->convergence_duration );
+  printf( "data=%s\n", hc );
+  free( hc );
+}
+
 static void
 tssplit( const char *input_name, const char *output_name ) {
   tss_input in;
@@ -435,6 +472,10 @@ tssplit( const char *input_name, const char *output_name ) {
 
     if ( av_read_frame( in.file, &pkt ) < 0 ) {
       break;
+    }
+
+    if ( debug ) {
+      dump_packet( &pkt );
     }
 
     si = pkt.stream_index;
@@ -471,7 +512,8 @@ usage( void ) {
            "  -C<n>,  --chunk=<n>      Number of gops per chunk (1)\n"
            "  -V,     --version        See version number\n"
            "  -v,     --verbose        Verbose output\n"
-           "  -h,     --help           See this text\n" );
+           "  -h,     --help           See this text\n"
+           "  -D,     --debug          Turn on debug\n" );
   exit( 1 );
 }
 
@@ -483,6 +525,7 @@ main( int argc, char **argv ) {
     {"chunk", required_argument, NULL, 'C'},
     {"help", no_argument, NULL, 'h'},
     {"verbose", no_argument, NULL, 'v'},
+    {"debug", no_argument, NULL, 'D'},
     {"version", no_argument, NULL, 'V'},
     {NULL, 0, NULL, 0}
   };
@@ -491,10 +534,13 @@ main( int argc, char **argv ) {
   avcodec_register_all(  );
   av_register_all(  );
 
-  while ( ch = getopt_long( argc, argv, "hvVC:", opts, NULL ), ch != -1 ) {
+  while ( ch = getopt_long( argc, argv, "hvVCD:", opts, NULL ), ch != -1 ) {
     switch ( ch ) {
     case 'v':
       verbose++;
+      break;
+    case 'D':
+      debug++;
       break;
     case 'V':
       printf( "%s %s\n", PROG, VERSION );
