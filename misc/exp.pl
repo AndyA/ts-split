@@ -9,7 +9,7 @@ use constant STEPS => 8;
 
 print
  join( ' ',
-  map { "${_}k" } map { int( $_ + 0.5 ) } range( LOW, HIGH, STEPS ) ),
+  map { "${_}k" } map { int( $_ + 0.5 ) } reverse range( LOW, HIGH, STEPS ) ),
  "\n";
 
 sub range {
