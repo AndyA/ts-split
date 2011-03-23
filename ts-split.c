@@ -541,7 +541,7 @@ usage( void ) {
            "  -V,      --version      See version number\n"
            "  -v,      --verbose      Verbose output\n"
            "  -h,      --help         See this text\n"
-           "  -D,      --debug        Turn on debug\n" );
+           "  -D,      --debug        Turn on debug\n\n" );
   exit( 1 );
 }
 
