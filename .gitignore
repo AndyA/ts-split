@@ -6,5 +6,6 @@
 *.ts
 .*.swp
 Session.vim
+ffmpeg
 tags
 ts-split
