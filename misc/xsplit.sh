@@ -2,8 +2,8 @@
 
 IN="tg.ts"
 OUT="out"
-BITRATES="400k 800k 1600k"
-AUDIOBR="1600k"
+BITRATES="220k 320k 464k 674k 979k 1422k 2065k 3000k"
+AUDIOBR="2999k"
 VIDEO_OPTIONS="-g 100 -keyint_min 50 -flags2 -mbtree -threads 0"
 
 rm -rf "$OUT"
