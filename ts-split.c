@@ -22,6 +22,7 @@
 #define VERSION "0.01"
 #define CHUNK 1                 /* default # gops per chunk */
 #define THREAD_COUNT 1
+#define TMP_SUFFIX ".tmp"
 
 #define HASH_ALGO GCRY_MD_SHA1
 
@@ -43,6 +44,8 @@ typedef struct {
 typedef struct {
   AVFormatContext *file;
   output_stream **st;
+  char *tmp_name;
+  char *name;
 } tss_output;
 
 static int verbose = 0;
@@ -326,7 +329,7 @@ free_input( tss_input * in ) {
 }
 
 static void
-free_output( tss_output * out ) {
+close_output( tss_output * out ) {
   int i;
   output_stream *ost;
 
@@ -356,19 +359,28 @@ free_output( tss_output * out ) {
   }
   av_metadata_free( &out->file->metadata );
   av_free( out->file );
+
+  if ( rename( out->tmp_name, out->name ) < 0 ) {
+    die( "Failed to rename %s as %s: %s", out->tmp_name, out->name,
+         strerror( errno ) );
+  }
+
+  free( out->tmp_name );
+  free( out->name );
   out->file = NULL;
+  out->name = out->tmp_name = NULL;
 }
 
 static void
 start_output( tss_output * out, tss_input * in, const char *name, int seq ) {
-  char *tmpn;
-
-  if ( asprintf( &tmpn, name, seq ) < 0 ) {
+  if ( asprintf( &out->name, name, seq ) < 0 ||
+       asprintf( &out->tmp_name, "%s%s", out->name, TMP_SUFFIX ) < 0 ) {
     oom(  );
   }
+
   mention( "Writing %s", tmpn );
 
-  set_output( out, in, tmpn );
+  set_output( out, in, out->tmp_name );
   free( tmpn );
 
   av_metadata_copy( &out->file->metadata,
@@ -385,7 +397,7 @@ end_output( tss_output * out ) {
     die( "Failed to write trailer" );
   }
 
-  free_output( out );
+  close_output( out );
 }
 
 /* Verify that the output filename contains a single printf-style format
