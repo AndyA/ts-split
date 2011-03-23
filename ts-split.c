@@ -378,10 +378,9 @@ start_output( tss_output * out, tss_input * in, const char *name, int seq ) {
     oom(  );
   }
 
-  mention( "Writing %s", tmpn );
+  mention( "Writing %s", out->name );
 
   set_output( out, in, out->tmp_name );
-  free( tmpn );
 
   av_metadata_copy( &out->file->metadata,
                     in->file->metadata, AV_METADATA_DONT_OVERWRITE );
