@@ -163,7 +163,7 @@ new_stream( AVFormatContext * oc, int type ) {
 }
 
 static AVFormatContext *
-set_output_file( const char *name, tss_input * in ) {
+set_output_file( const char *name, const char *real_name, tss_input * in ) {
   AVFormatContext *oc;
   enum AVMediaType codec_type;
   int i, err, nfound;
@@ -174,7 +174,7 @@ set_output_file( const char *name, tss_input * in ) {
     name = "pipe:";
 
   oc = alloc_context(  );
-  file_oformat = av_guess_format( NULL, name, NULL );
+  file_oformat = av_guess_format( NULL, real_name, NULL );
   if ( !file_oformat ) {
     die( "Unable to find a suitable output format for \"%s\"", name );
   }
@@ -228,13 +228,13 @@ set_input( tss_input * in, const char *name, AVInputFormat * fmt ) {
 }
 
 static void
-set_output( tss_output * out, tss_input * in, const char *name ) {
+set_output( tss_output * out, tss_input * in ) {
   int i, j, nb_ostreams;
   output_stream *ost;
   input_stream *ist;
   AVCodecContext *codec, *icodec;
 
-  out->file = set_output_file( name, in );
+  out->file = set_output_file( out->tmp_name, out->name, in );
 
   for ( i = 0; i < in->file->nb_streams; i++ ) {
     in->st[i]->discard = 1;
@@ -380,7 +380,7 @@ start_output( tss_output * out, tss_input * in, const char *name, int seq ) {
 
   mention( "Writing %s", out->name );
 
-  set_output( out, in, out->tmp_name );
+  set_output( out, in );
 
   av_metadata_copy( &out->file->metadata,
                     in->file->metadata, AV_METADATA_DONT_OVERWRITE );
