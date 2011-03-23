@@ -5,6 +5,7 @@
 *.o
 *.ts
 .*.swp
+.DS_Store
 Session.vim
 ffmpeg
 tags
