@@ -6,17 +6,27 @@ PREFIX=$(shell dirname $(BINDIR))
 INCDIR=$(PREFIX)/include
 LIBDIR=$(PREFIX)/lib
 
-INCLUDES=-I$(INCDIR) -I/opt/local/include 
-LIBS=-lavcore -lavcodec -lavformat -lavutil -lmp3lame -lvpx -lx264 -lz -lfaac -lswscale -lbz2 -lgcrypt
-LDFLAGS=-L/opt/local/lib $(LIBS) -L$(LIBDIR) 
+DBPREFIX=$(PWD)/ffmpeg
+DBINCDIR=$(DBPREFIX)/include
+DBLIBDIR=$(DBPREFIX)/lib
+
+LIBS=-lavcore -lavcodec -lavformat -lavutil \
+	-lmp3lame -lvpx -lx264 -lz -lfaac -lswscale -lbz2 -lgcrypt
+
+INCLUDES=-I/opt/local/include -I$(INCDIR)
+LDFLAGS=-L/opt/local/lib $(LIBS) -L$(LIBDIR)
 CPPFLAGS=-Wall -O3 $(INCLUDES)
+
+# INCLUDES=-I/opt/local/include -I$(DBINCDIR) -I$(INCDIR)
+# LDFLAGS=-L/opt/local/lib $(LIBS) -L$(DBLIBDIR) -L$(LIBDIR)
 # CPPFLAGS=-Wall -g $(INCLUDES)
+# LDFLAGS+=-lgcov
+# CPPFLAGS+=-fprofile-arcs -ftest-coverage
+
 OBJS=ts-split.o
 PROG=ts-split
 INSTALL_PREFIX=$(PREFIX)
 
-# LDFLAGS+=-lgcov
-# CPPFLAGS+=-fprofile-arcs -ftest-coverage
 
 all: $(PROG)
 
