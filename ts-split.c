@@ -392,11 +392,13 @@ start_output( tss_output * out, tss_input * in, const char *name, int seq ) {
 
 static void
 end_output( tss_output * out ) {
-  if ( av_write_trailer( out->file ) < 0 ) {
-    die( "Failed to write trailer" );
-  }
+  if ( out && out->file ) {
+    if ( av_write_trailer( out->file ) < 0 ) {
+      die( "Failed to write trailer" );
+    }
 
-  close_output( out );
+    close_output( out );
+  }
 }
 
 /* Verify that the output filename contains a single printf-style format
