@@ -458,6 +458,7 @@ tssplit( const char *input_name, const char *output_name,
   int seq = 0;
   int done_output = 0;
   int gop_count = 0;
+  int error_count = 0;
   AVInputFormat *fmt = NULL;
 
   if ( !valid_format_string( output_name ) ) {
@@ -500,7 +501,8 @@ tssplit( const char *input_name, const char *output_name,
       }
 
       if ( av_interleaved_write_frame( out.file, &pkt ) < 0 ) {
-        die( "Frame write failed" );
+        /* die( "Frame write failed" ); */
+        error_count++;
       }
       ++done_output;
     }
@@ -510,6 +512,9 @@ tssplit( const char *input_name, const char *output_name,
 
   end_output( &out );
   free_input( &in );
+  if ( error_count ) {
+    mention( "%d write errors detected", error_count );
+  }
 }
 
 static void
