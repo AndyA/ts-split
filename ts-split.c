@@ -22,7 +22,7 @@
 #define VERSION "0.01"
 #define CHUNK 1                 /* default # gops per chunk */
 #define THREAD_COUNT 1
-#define TMP_SUFFIX ".tmp"
+#define SUFFIX ".tmp"
 
 #define HASH_ALGO GCRY_MD_SHA1
 
@@ -52,6 +52,7 @@ static int verbose = 0;
 static int debug = 0;
 static int chunk_size = CHUNK;
 static char *input_format = NULL;
+static char *suffix = SUFFIX;
 
 static float mux_preload = 0.5;
 static float mux_max_delay = 0.7;
@@ -374,7 +375,7 @@ close_output( tss_output * out ) {
 static void
 start_output( tss_output * out, tss_input * in, const char *name, int seq ) {
   if ( asprintf( &out->name, name, seq ) < 0 ||
-       asprintf( &out->tmp_name, "%s%s", out->name, TMP_SUFFIX ) < 0 ) {
+       asprintf( &out->tmp_name, "%s%s", out->name, suffix ) < 0 ) {
     oom(  );
   }
 
@@ -534,12 +535,13 @@ static void
 usage( void ) {
   fprintf( stderr, "Usage: " PROG " [options] <in.ts> <out%%03d.ts>\n\n"
            "Options:\n"
-           "  -C<n>,   --chunk=<n>      Number of gops per chunk (1)\n"
-           "  -F<fmt>, --format=<fmt>   Input format (see ffmpeg -formats)\n"
-           "  -V,      --version        See version number\n"
-           "  -v,      --verbose        Verbose output\n"
-           "  -h,      --help           See this text\n"
-           "  -D,      --debug          Turn on debug\n" );
+           "  -C<n>,   --chunk=<n>    Number of gops per chunk (1)\n"
+           "  -F<fmt>, --format=<fmt> Input format (see ffmpeg -formats)\n"
+           "  -S<sfx>, --suffix=<sfx> Suffix for temp files (" SUFFIX ")\n"
+           "  -V,      --version      See version number\n"
+           "  -v,      --verbose      Verbose output\n"
+           "  -h,      --help         See this text\n"
+           "  -D,      --debug        Turn on debug\n" );
   exit( 1 );
 }
 
@@ -550,6 +552,7 @@ main( int argc, char **argv ) {
   static struct option opts[] = {
     {"chunk", required_argument, NULL, 'C'},
     {"format", required_argument, NULL, 'F'},
+    {"suffix", required_argument, NULL, 'S'},
     {"help", no_argument, NULL, 'h'},
     {"verbose", no_argument, NULL, 'v'},
     {"debug", no_argument, NULL, 'D'},
@@ -562,7 +565,7 @@ main( int argc, char **argv ) {
   av_register_all(  );
 
   while ( ch =
-          getopt_long( argc, argv, "hvVDF:C:", opts, NULL ), ch != -1 ) {
+          getopt_long( argc, argv, "hvVDF:C:S:", opts, NULL ), ch != -1 ) {
     switch ( ch ) {
     case 'v':
       verbose++;
@@ -584,6 +587,9 @@ main( int argc, char **argv ) {
       break;
     case 'F':
       input_format = optarg;
+      break;
+    case 'S':
+      suffix = optarg;
       break;
     case 0:
       break;
