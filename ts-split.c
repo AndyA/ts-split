@@ -626,7 +626,8 @@ usage( void ) {
            "  -S<sfx>, --suffix=<sfx> Suffix for temp files (" SUFFIX ")\n"
            "  -P<cmd>  --post=cmd     Post chunk command. These tokens may be used:\n"
            "                            " CHUNK_NAME "   chunk file name\n"
-           "                            " CHUNK_FRAME "   number of first frame in chunk\n"
+           "                            " CHUNK_FRAME
+           "   chunk start frame\n"
            "  -V,      --version      See version number\n"
            "  -v,      --verbose      Verbose output\n"
            "  -h,      --help         See this text\n"
