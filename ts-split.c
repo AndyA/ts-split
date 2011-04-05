@@ -71,6 +71,16 @@ die( const char *msg, ... ) {
 }
 
 static void
+warn( const char *msg, ... ) {
+  va_list ap;
+  va_start( ap, msg );
+  fprintf( stderr, "Warning: " );
+  vfprintf( stderr, msg, ap );
+  fprintf( stderr, "\n" );
+  va_end( ap );
+}
+
+static void
 mention( const char *msg, ... ) {
   if ( verbose ) {
     va_list ap;
@@ -173,8 +183,9 @@ set_output_file( const char *name, const char *real_name, tss_input * in ) {
   AVFormatParameters params, *ap = &params;
   AVOutputFormat *file_oformat;
 
-  if ( !strcmp( name, "-" ) )
+  if ( !strcmp( name, "-" ) ) {
     name = "pipe:";
+  }
 
   oc = alloc_context(  );
   file_oformat = av_guess_format( NULL, real_name, NULL );
@@ -563,8 +574,8 @@ tssplit( const char *input_name, const char *output_name,
       }
 
       if ( av_interleaved_write_frame( out.file, &pkt ) < 0 ) {
-        /* die( "Frame write failed" ); */
-        error_count++;
+        ++error_count;
+        warn( "Error writing frame" );
       }
       ++done_output;
     }
