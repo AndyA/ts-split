@@ -23,6 +23,7 @@
 #define CHUNK 1                 /* default # gops per chunk */
 #define THREAD_COUNT 1
 #define SUFFIX ".tmp"
+#define CHUNK_NAME "[chunk]"
 
 #define HASH_ALGO GCRY_MD_SHA1
 
@@ -52,6 +53,7 @@ static int verbose = 0;
 static int debug = 0;
 static int chunk_size = CHUNK;
 static char *input_format = NULL;
+static char *chunk_command = NULL;
 static char *suffix = SUFFIX;
 
 static float mux_preload = 0.5;
@@ -329,6 +331,50 @@ free_input( tss_input * in ) {
   av_close_input_file( in->file );
 }
 
+static char *
+str_replace( const char *str, const char *pattern, const char *replace ) {
+  int chunks = 0;
+  size_t nlen, plen = strlen( pattern ), rlen = strlen( replace );
+  char *buf, *bp;
+
+  {
+    const char *p = str, *m = NULL;
+    while ( ( m = strstr( p, pattern ) ) ) {
+      chunks++;
+      p = m + plen;
+    }
+  }
+
+  nlen = strlen( str ) + ( ( long ) rlen - ( long ) plen ) * chunks;
+  bp = buf = mallocz( nlen + 1 );
+
+  {
+    const char *p = str, *m = NULL;
+    while ( ( m = strstr( p, pattern ) ) ) {
+      memcpy( bp, p, m - p );
+      bp += m - p;
+      p = m + plen;
+      memcpy( bp, replace, rlen );
+      bp += rlen;
+    }
+    strcpy( bp, p );
+  }
+
+  return buf;
+}
+
+static void
+post_command( const char *cmd, const char *chunk ) {
+  if ( cmd ) {
+    char *cmdbuf = str_replace( cmd, CHUNK_NAME, chunk );
+    int rc = system( cmdbuf );
+    if ( rc ) {
+      die( "%s failed: %d\n", cmdbuf, rc );
+    }
+    av_free( cmdbuf );
+  }
+}
+
 static void
 close_output( tss_output * out ) {
   int i;
@@ -365,6 +411,8 @@ close_output( tss_output * out ) {
     die( "Failed to rename %s as %s: %s", out->tmp_name, out->name,
          strerror( errno ) );
   }
+
+  post_command( chunk_command, out->name );
 
   free( out->tmp_name );
   free( out->name );
@@ -538,6 +586,10 @@ usage( void ) {
            "  -C<n>,   --chunk=<n>    Number of gops per chunk (1)\n"
            "  -F<fmt>, --format=<fmt> Input format (see ffmpeg -formats)\n"
            "  -S<sfx>, --suffix=<sfx> Suffix for temp files (" SUFFIX ")\n"
+           "  -P<cmd>  --post=cmd     Post chunk command. The string\n"
+           "                          \"" CHUNK_NAME
+           "\" is replaced with the\n"
+           "                          chunk filename\n"
            "  -V,      --version      See version number\n"
            "  -v,      --verbose      Verbose output\n"
            "  -h,      --help         See this text\n"
@@ -553,6 +605,7 @@ main( int argc, char **argv ) {
     {"chunk", required_argument, NULL, 'C'},
     {"format", required_argument, NULL, 'F'},
     {"suffix", required_argument, NULL, 'S'},
+    {"post", required_argument, NULL, 'P'},
     {"help", no_argument, NULL, 'h'},
     {"verbose", no_argument, NULL, 'v'},
     {"debug", no_argument, NULL, 'D'},
@@ -565,7 +618,8 @@ main( int argc, char **argv ) {
   av_register_all(  );
 
   while ( ch =
-          getopt_long( argc, argv, "hvVDF:C:S:", opts, NULL ), ch != -1 ) {
+          getopt_long( argc, argv, "hvVDF:C:S:P:", opts, NULL ),
+          ch != -1 ) {
     switch ( ch ) {
     case 'v':
       verbose++;
@@ -587,6 +641,9 @@ main( int argc, char **argv ) {
       break;
     case 'F':
       input_format = optarg;
+      break;
+    case 'P':
+      chunk_command = optarg;
       break;
     case 'S':
       suffix = optarg;
