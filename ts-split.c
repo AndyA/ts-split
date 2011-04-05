@@ -24,6 +24,7 @@
 #define THREAD_COUNT 1
 #define SUFFIX ".tmp"
 #define CHUNK_NAME "[chunk]"
+#define CHUNK_FRAME "[frame]"
 
 #define HASH_ALGO GCRY_MD_SHA1
 
@@ -47,6 +48,7 @@ typedef struct {
   output_stream **st;
   char *tmp_name;
   char *name;
+  int first_frame;
 } tss_output;
 
 static int verbose = 0;
@@ -374,11 +376,31 @@ str_replace( const char *str, const char *pattern, const char *replace ) {
   return buf;
 }
 
+static char *
+str_replace_multi( const char *str, const char **pattern,
+                   const char **replace ) {
+  int i;
+  char *rep = ( char * ) str, *nrep;
+  for ( i = 0; pattern[i] && replace[i]; i++ ) {
+    nrep = str_replace( rep, pattern[i], replace[i] );
+    if ( rep != str ) {
+      av_free( rep );
+    }
+    rep = nrep;
+  }
+  return rep;
+}
+
 static void
-post_command( const char *cmd, const char *chunk ) {
+post_command( const char *cmd, tss_output * out ) {
   if ( cmd ) {
-    char *cmdbuf = str_replace( cmd, CHUNK_NAME, chunk );
+    char fbuf[32];
+    sprintf( fbuf, "%d", out->first_frame );
+    const char *dict[] = { CHUNK_NAME, CHUNK_FRAME, NULL };
+    const char *vals[] = { out->name, fbuf, NULL };
+    char *cmdbuf = str_replace_multi( cmd, dict, vals );
     int rc = system( cmdbuf );
+
     if ( rc ) {
       die( "%s failed: %d\n", cmdbuf, rc );
     }
@@ -423,7 +445,7 @@ close_output( tss_output * out ) {
          strerror( errno ) );
   }
 
-  post_command( chunk_command, out->name );
+  post_command( chunk_command, out );
 
   free( out->tmp_name );
   free( out->name );
@@ -432,15 +454,17 @@ close_output( tss_output * out ) {
 }
 
 static void
-start_output( tss_output * out, tss_input * in, const char *name, int seq ) {
-  if ( asprintf( &out->name, name, seq ) < 0 ||
-       asprintf( &out->tmp_name, "%s%s", out->name, suffix ) < 0 ) {
+start_output( tss_output * out, tss_input * in, const char *name, int seq,
+              int frame ) {
+  if ( asprintf( &out->name, name, seq ) < 0
+       || asprintf( &out->tmp_name, "%s%s", out->name, suffix ) < 0 ) {
     oom(  );
   }
 
   mention( "Writing %s", out->name );
 
   set_output( out, in );
+  out->first_frame = frame;
 
   av_metadata_copy( &out->file->metadata,
                     in->file->metadata, AV_METADATA_DONT_OVERWRITE );
@@ -530,6 +554,7 @@ tssplit( const char *input_name, const char *output_name,
   tss_output out;
   int seq = 0;
   int done_output = 0;
+  int frame_count = 0;
   int gop_count = 0;
   int error_count = 0;
   AVInputFormat *fmt = NULL;
@@ -545,7 +570,7 @@ tssplit( const char *input_name, const char *output_name,
   }
 
   set_input( &in, input_name, fmt );
-  start_output( &out, &in, output_name, seq++ );
+  start_output( &out, &in, output_name, seq++, frame_count );
 
   for ( ;; ) {
     AVPacket pkt;
@@ -562,14 +587,16 @@ tssplit( const char *input_name, const char *output_name,
     si = pkt.stream_index;
     if ( si < in.file->nb_streams && !in.st[si]->discard ) {
 
-      if ( in.st[si]->st->codec->codec_type == AVMEDIA_TYPE_VIDEO
-           && pkt.flags & AV_PKT_FLAG_KEY ) {
-        ++gop_count;
-        if ( gop_count >= chunk_size && done_output ) {
-          end_output( &out );
-          start_output( &out, &in, output_name, seq++ );
-          done_output = 0;
-          gop_count = 0;
+      if ( in.st[si]->st->codec->codec_type == AVMEDIA_TYPE_VIDEO ) {
+        ++frame_count;
+        if ( pkt.flags & AV_PKT_FLAG_KEY ) {
+          ++gop_count;
+          if ( gop_count >= chunk_size && done_output ) {
+            end_output( &out );
+            start_output( &out, &in, output_name, seq++, frame_count );
+            done_output = 0;
+            gop_count = 0;
+          }
         }
       }
 
@@ -597,10 +624,9 @@ usage( void ) {
            "  -C<n>,   --chunk=<n>    Number of gops per chunk (1)\n"
            "  -F<fmt>, --format=<fmt> Input format (see ffmpeg -formats)\n"
            "  -S<sfx>, --suffix=<sfx> Suffix for temp files (" SUFFIX ")\n"
-           "  -P<cmd>  --post=cmd     Post chunk command. The string\n"
-           "                          \"" CHUNK_NAME
-           "\" is replaced with the\n"
-           "                          chunk filename\n"
+           "  -P<cmd>  --post=cmd     Post chunk command. These tokens may be used:\n"
+           "                            " CHUNK_NAME "   chunk file name\n"
+           "                            " CHUNK_FRAME "   number of first frame in chunk\n"
            "  -V,      --version      See version number\n"
            "  -v,      --verbose      Verbose output\n"
            "  -h,      --help         See this text\n"
