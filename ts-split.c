@@ -45,6 +45,7 @@ typedef struct {
   input_stream **st;
   unsigned long frame_count;
   FILE *mf;
+  AVPacket pkt;
 } tss_input;
 
 typedef struct {
@@ -53,6 +54,7 @@ typedef struct {
   char *tmp_name;
   char *name;
   unsigned long first_frame;
+  int64_t pts, dts;
 } tss_output;
 
 static int verbose = 0;
@@ -477,6 +479,8 @@ start_output( tss_output * out, tss_input * in, const char *name, int seq ) {
 
   set_output( out, in );
   out->first_frame = in->frame_count;
+  out->pts = in->pkt.pts;
+  out->dts = in->pkt.dts;
 
   av_metadata_copy( &out->file->metadata,
                     in->file->metadata, AV_METADATA_DONT_OVERWRITE );
@@ -488,8 +492,9 @@ start_output( tss_output * out, tss_input * in, const char *name, int seq ) {
 
 static void
 write_manifest( FILE * fl, tss_output * out, tss_input * in ) {
-  fprintf( fl, "%s,%lu,%lu\n", out->name, out->first_frame,
-           in->frame_count );
+  fprintf( fl, "%s,%lu,%lu,%lld,%lld\n", out->name, out->first_frame,
+           in->frame_count, ( long long ) out->dts,
+           ( long long ) out->pts );
 }
 
 static void
@@ -601,23 +606,22 @@ tssplit( const char *input_name, const char *output_name,
   start_output( &out, &in, output_name, seq++ );
 
   for ( ;; ) {
-    AVPacket pkt;
     int si;
 
-    if ( av_read_frame( in.file, &pkt ) < 0 ) {
+    if ( av_read_frame( in.file, &in.pkt ) < 0 ) {
       break;
     }
 
     if ( debug ) {
-      dump_packet( &pkt );
+      dump_packet( &in.pkt );
     }
 
-    si = pkt.stream_index;
+    si = in.pkt.stream_index;
     if ( si < in.file->nb_streams && !in.st[si]->discard ) {
 
       if ( in.st[si]->st->codec->codec_type == AVMEDIA_TYPE_VIDEO ) {
         ++in.frame_count;
-        if ( pkt.flags & AV_PKT_FLAG_KEY ) {
+        if ( in.pkt.flags & AV_PKT_FLAG_KEY ) {
           ++gop_count;
           if ( gop_count >= chunk_size && done_output ) {
             end_output( &out, &in );
@@ -628,14 +632,14 @@ tssplit( const char *input_name, const char *output_name,
         }
       }
 
-      if ( av_write_frame( out.file, &pkt ) < 0 ) {
+      if ( av_write_frame( out.file, &in.pkt ) < 0 ) {
         ++error_count;
         warn( "Error writing frame" );
       }
       ++done_output;
     }
 
-    av_free_packet( &pkt );
+    av_free_packet( &in.pkt );
   }
 
   end_output( &out, &in );
