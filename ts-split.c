@@ -628,7 +628,7 @@ tssplit( const char *input_name, const char *output_name,
         }
       }
 
-      if ( av_interleaved_write_frame( out.file, &pkt ) < 0 ) {
+      if ( av_write_frame( out.file, &pkt ) < 0 ) {
         ++error_count;
         warn( "Error writing frame" );
       }
