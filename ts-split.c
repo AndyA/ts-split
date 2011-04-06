@@ -23,8 +23,10 @@
 #define CHUNK 1                 /* default # gops per chunk */
 #define THREAD_COUNT 1
 #define SUFFIX ".tmp"
-#define CHUNK_NAME "[chunk]"
-#define CHUNK_FRAME "[frame]"
+
+#define CHUNK_NAME  "[chunk]"
+#define CHUNK_START "[start]"
+#define CHUNK_END   "[end]"
 
 #define HASH_ALGO GCRY_MD_SHA1
 
@@ -41,6 +43,8 @@ typedef struct {
 typedef struct {
   AVFormatContext *file;
   input_stream **st;
+  int frame_count;
+  FILE *mf;
 } tss_input;
 
 typedef struct {
@@ -56,6 +60,7 @@ static int debug = 0;
 static int chunk_size = CHUNK;
 static char *input_format = NULL;
 static char *chunk_command = NULL;
+static char *manifest_file = NULL;
 static char *suffix = SUFFIX;
 
 static float mux_preload = 0.5;
@@ -233,6 +238,9 @@ set_input( tss_input * in, const char *name, AVInputFormat * fmt ) {
   int i, nb_istreams;
   input_stream *ist;
 
+  in->frame_count = 0;
+  in->mf = NULL;
+
   in->file = set_input_file( name, fmt );
   nb_istreams = in->file->nb_streams;
   in->st = mallocz( nb_istreams * sizeof( input_stream * ) );
@@ -340,6 +348,10 @@ free_input( tss_input * in ) {
     av_free( in->st[i] );
   }
 
+  if ( in->mf ) {
+    fclose( in->mf );
+  }
+
   av_free( in->st );
   av_close_input_file( in->file );
 }
@@ -392,12 +404,13 @@ str_replace_multi( const char *str, const char **pattern,
 }
 
 static void
-post_command( const char *cmd, tss_output * out ) {
+post_command( const char *cmd, tss_output * out, tss_input * in ) {
   if ( cmd ) {
-    char fbuf[32];
-    sprintf( fbuf, "%d", out->first_frame );
-    const char *dict[] = { CHUNK_NAME, CHUNK_FRAME, NULL };
-    const char *vals[] = { out->name, fbuf, NULL };
+    char sbuf[32], ebuf[32];
+    sprintf( sbuf, "%d", out->first_frame );
+    sprintf( ebuf, "%d", in->frame_count );
+    const char *dict[] = { CHUNK_NAME, CHUNK_START, CHUNK_END, NULL };
+    const char *vals[] = { out->name, sbuf, ebuf, NULL };
     char *cmdbuf = str_replace_multi( cmd, dict, vals );
     int rc = system( cmdbuf );
 
@@ -409,7 +422,7 @@ post_command( const char *cmd, tss_output * out ) {
 }
 
 static void
-close_output( tss_output * out ) {
+close_output( tss_output * out, tss_input * in ) {
   int i;
   output_stream *ost;
 
@@ -445,7 +458,7 @@ close_output( tss_output * out ) {
          strerror( errno ) );
   }
 
-  post_command( chunk_command, out );
+  post_command( chunk_command, out, in );
 
   free( out->tmp_name );
   free( out->name );
@@ -454,8 +467,7 @@ close_output( tss_output * out ) {
 }
 
 static void
-start_output( tss_output * out, tss_input * in, const char *name, int seq,
-              int frame ) {
+start_output( tss_output * out, tss_input * in, const char *name, int seq ) {
   if ( asprintf( &out->name, name, seq ) < 0
        || asprintf( &out->tmp_name, "%s%s", out->name, suffix ) < 0 ) {
     oom(  );
@@ -464,7 +476,7 @@ start_output( tss_output * out, tss_input * in, const char *name, int seq,
   mention( "Writing %s", out->name );
 
   set_output( out, in );
-  out->first_frame = frame;
+  out->first_frame = in->frame_count;
 
   av_metadata_copy( &out->file->metadata,
                     in->file->metadata, AV_METADATA_DONT_OVERWRITE );
@@ -475,13 +487,23 @@ start_output( tss_output * out, tss_input * in, const char *name, int seq,
 }
 
 static void
-end_output( tss_output * out ) {
+write_manifest( FILE * fl, tss_output * out, tss_input * in ) {
+  fprintf( fl, "%s,%d,%d\n", out->name, out->first_frame,
+           in->frame_count );
+}
+
+static void
+end_output( tss_output * out, tss_input * in ) {
   if ( out && out->file ) {
     if ( av_write_trailer( out->file ) < 0 ) {
       die( "Failed to write trailer" );
     }
 
-    close_output( out );
+    if ( in->mf ) {
+      write_manifest( in->mf, out, in );
+    }
+
+    close_output( out, in );
   }
 }
 
@@ -554,7 +576,6 @@ tssplit( const char *input_name, const char *output_name,
   tss_output out;
   int seq = 0;
   int done_output = 0;
-  int frame_count = 0;
   int gop_count = 0;
   int error_count = 0;
   AVInputFormat *fmt = NULL;
@@ -570,7 +591,14 @@ tssplit( const char *input_name, const char *output_name,
   }
 
   set_input( &in, input_name, fmt );
-  start_output( &out, &in, output_name, seq++, frame_count );
+
+  if ( manifest_file ) {
+    if ( !( in.mf = fopen( manifest_file, "w" ) ) ) {
+      die( "Can't write %s: %s", manifest_file, strerror( errno ) );
+    }
+  }
+
+  start_output( &out, &in, output_name, seq++ );
 
   for ( ;; ) {
     AVPacket pkt;
@@ -588,12 +616,12 @@ tssplit( const char *input_name, const char *output_name,
     if ( si < in.file->nb_streams && !in.st[si]->discard ) {
 
       if ( in.st[si]->st->codec->codec_type == AVMEDIA_TYPE_VIDEO ) {
-        ++frame_count;
+        ++in.frame_count;
         if ( pkt.flags & AV_PKT_FLAG_KEY ) {
           ++gop_count;
           if ( gop_count >= chunk_size && done_output ) {
-            end_output( &out );
-            start_output( &out, &in, output_name, seq++, frame_count );
+            end_output( &out, &in );
+            start_output( &out, &in, output_name, seq++ );
             done_output = 0;
             gop_count = 0;
           }
@@ -610,7 +638,7 @@ tssplit( const char *input_name, const char *output_name,
     av_free_packet( &pkt );
   }
 
-  end_output( &out );
+  end_output( &out, &in );
   free_input( &in );
   if ( error_count ) {
     mention( "%d write errors detected", error_count );
@@ -621,17 +649,18 @@ static void
 usage( void ) {
   fprintf( stderr, "Usage: " PROG " [options] <in.ts> <out%%03d.ts>\n\n"
            "Options:\n"
-           "  -C<n>,   --chunk=<n>    Number of gops per chunk (1)\n"
-           "  -F<fmt>, --format=<fmt> Input format (see ffmpeg -formats)\n"
-           "  -S<sfx>, --suffix=<sfx> Suffix for temp files (" SUFFIX ")\n"
-           "  -P<cmd>  --post=cmd     Post chunk command. These tokens may be used:\n"
-           "                            " CHUNK_NAME "   chunk file name\n"
-           "                            " CHUNK_FRAME
-           "   chunk start frame\n"
-           "  -V,      --version      See version number\n"
-           "  -v,      --verbose      Verbose output\n"
-           "  -h,      --help         See this text\n"
-           "  -D,      --debug        Turn on debug\n\n" );
+           "  -C<n>,   --chunk=<n>      Number of gops per chunk (1)\n"
+           "  -F<fmt>, --format=<fmt>   Input format (see ffmpeg -formats)\n"
+           "  -M<man>, --manifest=<man> Manifest file to write\n"
+           "  -P<cmd>  --post=cmd       Post chunk command. These tokens may be used:\n"
+           "                              " CHUNK_NAME
+           "   chunk file name\n" "                              "
+           CHUNK_START "   chunk start frame\n"
+           "  -S<sfx>, --suffix=<sfx>   Suffix for temp files (" SUFFIX
+           ")\n" "  -V,      --version        See version number\n"
+           "  -v,      --verbose        Verbose output\n"
+           "  -h,      --help           See this text\n"
+           "  -D,      --debug          Turn on debug\n\n" );
   exit( 1 );
 }
 
@@ -644,6 +673,7 @@ main( int argc, char **argv ) {
     {"format", required_argument, NULL, 'F'},
     {"suffix", required_argument, NULL, 'S'},
     {"post", required_argument, NULL, 'P'},
+    {"manifest", required_argument, NULL, 'M'},
     {"help", no_argument, NULL, 'h'},
     {"verbose", no_argument, NULL, 'v'},
     {"debug", no_argument, NULL, 'D'},
@@ -656,7 +686,7 @@ main( int argc, char **argv ) {
   av_register_all(  );
 
   while ( ch =
-          getopt_long( argc, argv, "hvVDF:C:S:P:", opts, NULL ),
+          getopt_long( argc, argv, "hvVDF:C:S:P:M:", opts, NULL ),
           ch != -1 ) {
     switch ( ch ) {
     case 'v':
@@ -682,6 +712,9 @@ main( int argc, char **argv ) {
       break;
     case 'P':
       chunk_command = optarg;
+      break;
+    case 'M':
+      manifest_file = optarg;
       break;
     case 'S':
       suffix = optarg;
