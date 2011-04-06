@@ -160,7 +160,7 @@ set_input_file( const char *name, AVInputFormat * fmt ) {
   for ( i = 0; i < ic->nb_streams; i++ ) {
     AVStream *st = ic->streams[i];
     AVCodecContext *dec = st->codec;
-    avcodec_thread_init( dec, THREAD_COUNT );
+    dec->thread_count = 0;
   }
 
   return ic;
@@ -180,7 +180,7 @@ new_stream( AVFormatContext * oc, int type ) {
   AVStream *st = alloc_stream( oc, oc->nb_streams < 0 );
   st->stream_copy = 1;
   avcodec_get_context_defaults3( st->codec, NULL );
-  avcodec_thread_init( st->codec, THREAD_COUNT );
+  st->codec->thread_count = 0;
   st->codec->codec_type = type;
 }
 
@@ -220,7 +220,7 @@ set_output_file( const char *name, const char *real_name, tss_input * in ) {
 
   oc->timestamp = 0;
 
-  if ( ( err = url_fopen( &oc->pb, name, URL_WRONLY ) ) < 0 ) {
+  if ( ( err = avio_open( &oc->pb, name, URL_WRONLY ) ) < 0 ) {
     die( "Can't write \"%s\"", name );
   }
 
@@ -439,7 +439,7 @@ close_output( tss_output * out, tss_input * in ) {
   av_free( out->st );
   out->st = NULL;
 
-  url_fclose( out->file->pb );
+  avio_close( out->file->pb );
   for ( i = 0; i < out->file->nb_streams; i++ ) {
     av_metadata_free( &out->file->streams[i]->metadata );
     av_free( out->file->streams[i]->codec );
