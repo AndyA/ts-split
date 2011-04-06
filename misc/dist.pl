@@ -13,8 +13,9 @@ use List::Util qw( min max sum );
 
 use constant IN          => 'pingu';
 use constant OUT         => 'out';
-use constant MIN_BATCH   => 500;
-use constant MIN_OVERLAP => 50;
+use constant MIN_BATCH   => 1000;
+use constant MIN_OVERLAP => 100;
+use constant DROP_FUDGE  => 3;
 use constant WORKERS     => 4;
 use constant BUFSIZE     => 8192;
 
@@ -28,7 +29,7 @@ my @FFMPEG = (
   -vcodec  => 'libx264',
   -vpre    => 'veryfast',
   -vpre    => 'main',
-  -g       => MIN_OVERLAP,
+  -g       => int( MIN_OVERLAP / 2 ),
   -threads => 0,
   -f       => 'mpegts',
   '-deinterlace',
@@ -68,21 +69,21 @@ sub splice_spans {
     my $asset = load_asset( $span->{name} );
     print Dumper( $asset );
     my ( $pos, $dur ) = ( 0, 0 );
-    my $chunks = $asset->{chunks};
-    CHUNK: while ( $pos < @$chunks && $dur != $skip ) {
-      print "$dur, $skip\n";
-      if ( $dur > $skip ) {
-        warn "overrun: duration: $dur, skip: $skip\n";
-        $error{overrun}++;
-        last CHUNK;
-      }
+    my $chunks    = $asset->{chunks};
+    my $best_diff = undef;
+    my $best_dur  = undef;
+    my $best_pos  = undef;
+    CHUNK: while ( $pos < @$chunks && $dur < $skip + DROP_FUDGE ) {
+      my $diff = abs( $dur - $skip );
+      ( $best_diff, $best_dur, $best_pos ) = ( $diff, $dur, $pos )
+       if !defined $best_diff || $diff < $best_diff;
       $dur += $chunks->[ $pos++ ]{duration};
     }
-    if ( $dur < $skip ) {
-      warn "underrun: duration: $dur, skip: $skip\n";
-      $error{underrun}++;
+    if ( $best_diff ) {
+      warn "mismatch: skip should be $skip, is $best_dur\n";
+      $error{mismatch}++;
     }
-    push @pl, @{$chunks}[ $pos .. @$chunks - 1 ];
+    push @pl, @{$chunks}[ $best_pos .. @$chunks - 1 ];
     $skip = $span->{od};
   }
   return @pl;
