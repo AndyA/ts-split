@@ -43,9 +43,9 @@ typedef struct {
 typedef struct {
   AVFormatContext *file;
   input_stream **st;
-  unsigned long frame_count;
+  unsigned long long frame_count;
   FILE *mf;
-  AVPacket pkt;
+  AVPacket pkt; /* the last packet we read */
 } tss_input;
 
 typedef struct {
@@ -53,7 +53,7 @@ typedef struct {
   output_stream **st;
   char *tmp_name;
   char *name;
-  unsigned long first_frame;
+  unsigned long long first_frame;
   int64_t pts, dts;
 } tss_output;
 
@@ -409,8 +409,8 @@ static void
 post_command( const char *cmd, tss_output * out, tss_input * in ) {
   if ( cmd ) {
     char sbuf[32], ebuf[32];
-    sprintf( sbuf, "%lu", out->first_frame );
-    sprintf( ebuf, "%lu", in->frame_count );
+    sprintf( sbuf, "%llu", out->first_frame );
+    sprintf( ebuf, "%llu", in->frame_count );
     const char *dict[] = { CHUNK_NAME, CHUNK_START, CHUNK_END, NULL };
     const char *vals[] = { out->name, sbuf, ebuf, NULL };
     char *cmdbuf = str_replace_multi( cmd, dict, vals );
@@ -492,7 +492,7 @@ start_output( tss_output * out, tss_input * in, const char *name, int seq ) {
 
 static void
 write_manifest( FILE * fl, tss_output * out, tss_input * in ) {
-  fprintf( fl, "%s,%lu,%lu,%lld,%lld\n", out->name, out->first_frame,
+  fprintf( fl, "%s,%llu,%llu,%lld,%lld\n", out->name, out->first_frame,
            in->frame_count, ( long long ) out->dts,
            ( long long ) out->pts );
 }
