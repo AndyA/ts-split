@@ -469,7 +469,7 @@ close_output( tss_output * out, tss_input * in ) {
 }
 
 static void
-start_output( tss_output * out, tss_input * in, const char *name, int seq ) {
+start_output( tss_output * out, tss_input * in, const char *name, unsigned seq ) {
   if ( asprintf( &out->name, name, seq ) < 0
        || asprintf( &out->tmp_name, "%s%s", out->name, suffix ) < 0 ) {
     oom(  );
@@ -579,7 +579,7 @@ tssplit( const char *input_name, const char *output_name,
          const char *fmt_name ) {
   tss_input in;
   tss_output out;
-  int seq = 0;
+  unsigned seq = 0;
   int done_output = 0;
   int gop_count = 0;
   int error_count = 0;
