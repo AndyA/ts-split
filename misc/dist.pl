@@ -13,32 +13,17 @@ use List::Util qw( min max sum );
 
 use constant IN          => 'pingu';
 use constant OUT         => 'out';
-use constant MIN_BATCH   => 1000;
-use constant MIN_OVERLAP => 100;
+use constant MIN_BATCH   => 1179;
+use constant MIN_OVERLAP => 327;
 use constant DROP_FUDGE  => 3;
 use constant WORKERS     => 4;
 use constant BUFSIZE     => 8192;
-
-my @FFMPEG = (
-  'ffmpeg',
-  -i       => '-',
-  -acodec  => 'libfaac',
-  -ac      => 2,
-  -ab      => '96k',
-  -ar      => 44100,
-  -vcodec  => 'libx264',
-  -vpre    => 'veryfast',
-  -vpre    => 'main',
-  -g       => int( MIN_OVERLAP / 2 ),
-  -threads => 0,
-  -f       => 'mpegts',
-  '-deinterlace',
-  '-'
-);
+use constant FPS         => 25;
 
 my @FFCOPY = (
   'ffmpeg',
-  -i      => '-',
+  -i => '-',
+  '-copyts',
   -acodec => 'copy',
   -vcodec => 'copy',
 );
@@ -52,7 +37,8 @@ sub encode_asset {
   my @spans = partition( $asset );
   for my $span ( @spans ) {
     $span->{name}
-     = encode_span( $asset, $out, $span->{start}, $span->{overlap} );
+     = encode_span( $asset, $out, $span->{start}, $span->{overlap},
+      $span->{frame} );
   }
 
   my @pl = splice_spans( @spans );
@@ -117,6 +103,7 @@ sub partition {
       overlap => $oe,
       sd      => $sd,
       od      => $od,
+      frame   => $asset->{chunks}[$ss]{start},
      };
     $pos = $se;
   }
@@ -141,8 +128,28 @@ sub make_feeder {
      @{ $asset->{chunks} }[ $from .. $to - 1 ] );
 }
 
+sub ffmpeg_cmd {
+  return [
+    'ffmpeg',
+    -i => '-',
+    @_,
+    -acodec  => 'libfaac',
+    -ac      => 2,
+    -ab      => '96k',
+    -ar      => 44100,
+    -vcodec  => 'libx264',
+    -b       => '800k',
+    -vpre    => 'veryfast',
+    -vpre    => 'main',
+    -threads => 0,
+    -f       => 'mpegts',
+    '-deinterlace',
+    '-'
+  ];
+}
+
 sub encode_span {
-  my ( $asset, $out, $from, $to ) = @_;
+  my ( $asset, $out, $from, $to, $frame ) = @_;
   my $sname
    = File::Spec->catfile( $out, join '-', $asset->{name}, $from, $to );
   my $sman = manifest( $sname );
@@ -157,7 +164,8 @@ sub encode_span {
       File::Spec->catfile( $sname, '%08x.ts' )
     );
 
-    run $feeder, '|', \@FFMPEG, '|', \@split;
+    run $feeder, '|',
+     ffmpeg_cmd( -timestamp => frame_to_time( $frame ) ), '|', \@split;
   }
 
   return $sname;
@@ -201,11 +209,17 @@ sub read_manifest {
   while ( <$mh> ) {
     chomp;
     my @f = split /,/;
-    die "Bad manifest line: $_\n" unless @f >= 3;
-    my ( $file, $start, $end ) = @f;
+    die "Bad manifest line: $_\n" unless @f >= 5;
+    my ( $file, $start, $end, $dts, $pts ) = @f;
     die "Can't find $file\n" unless -f $file;
     push @{ $asset->{chunks} },
-     { file => $file, start => $start, end => $end };
+     {
+      file  => $file,
+      start => $start,
+      end   => $end,
+      dts   => $dts,
+      pts   => $pts
+     };
   }
   return $asset;
 }
@@ -215,6 +229,14 @@ sub load_asset {
   my $asset = read_manifest( $name );
   analyse_asset( $asset );
   return $asset;
+}
+
+sub frame_to_time {
+  my $fr = shift;
+  my ( $seconds, $frames ) = ( int( $fr / FPS ), $fr % FPS );
+  return sprintf '%02d:%02d:%02d.%06d',
+   int( $seconds / 3600 ) % 24, int( $seconds / 60 ) % 60,
+   $seconds % 60, $frames * 1000000 / FPS;
 }
 
 # vim:ts=2:sw=2:sts=2:et:ft=perl
