@@ -220,7 +220,7 @@ set_output_file( const char *name, const char *real_name, tss_input * in ) {
 
   oc->timestamp = 0;
 
-  if ( ( err = avio_open( &oc->pb, name, URL_WRONLY ) ) < 0 ) {
+  if ( ( err = avio_open( &oc->pb, name, AVIO_FLAG_WRITE ) ) < 0 ) {
     die( "Can't write \"%s\"", name );
   }
 
