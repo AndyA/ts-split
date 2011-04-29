@@ -41,8 +41,8 @@ clean:
 	rm -f *.gcov *.gcda *.gcno
 
 install: $(PROG)
-	mkdir -p $(INSTALL_PREFIX)/bin
-	cp $(PROG) $(INSTALL_PREFIX)/bin
+	install -d $(INSTALL_PREFIX)/bin
+	install $(PROG) $(INSTALL_PREFIX)/bin
 
 tags:
 	ctags -R ../ffmpeg/ffmpeg .
