@@ -45,7 +45,7 @@ typedef struct {
   input_stream **st;
   unsigned long long frame_count;
   FILE *mf;
-  AVPacket pkt; /* the last packet we read */
+  AVPacket pkt;                 /* the last packet we read */
 } tss_input;
 
 typedef struct {
@@ -60,6 +60,7 @@ typedef struct {
 static int verbose = 0;
 static int debug = 0;
 static int chunk_size = CHUNK;
+static int frame_type = AVMEDIA_TYPE_VIDEO;
 static char *input_format = NULL;
 static char *chunk_command = NULL;
 static char *manifest_file = NULL;
@@ -469,7 +470,8 @@ close_output( tss_output * out, tss_input * in ) {
 }
 
 static void
-start_output( tss_output * out, tss_input * in, const char *name, unsigned seq ) {
+start_output( tss_output * out, tss_input * in, const char *name,
+              unsigned seq ) {
   if ( asprintf( &out->name, name, seq ) < 0
        || asprintf( &out->tmp_name, "%s%s", out->name, suffix ) < 0 ) {
     oom(  );
@@ -619,9 +621,10 @@ tssplit( const char *input_name, const char *output_name,
     si = in.pkt.stream_index;
     if ( si < in.file->nb_streams && !in.st[si]->discard ) {
 
-      if ( in.st[si]->st->codec->codec_type == AVMEDIA_TYPE_VIDEO ) {
+      if ( in.st[si]->st->codec->codec_type == frame_type ) {
         ++in.frame_count;
-        if ( in.pkt.flags & AV_PKT_FLAG_KEY ) {
+        if ( frame_type == AVMEDIA_TYPE_AUDIO
+             || ( in.pkt.flags & AV_PKT_FLAG_KEY ) ) {
           ++gop_count;
           if ( gop_count >= chunk_size && done_output ) {
             end_output( &out, &in );
@@ -661,7 +664,8 @@ usage( void ) {
            "   chunk file name\n" "                              "
            CHUNK_START "   chunk start frame\n"
            "  -S<sfx>, --suffix=<sfx>   Suffix for temp files (" SUFFIX
-           ")\n" "  -V,      --version        See version number\n"
+           ")\n" "  -A,      --audio          Split by audio frames\n"
+           "  -V,      --version        See version number\n"
            "  -v,      --verbose        Verbose output\n"
            "  -h,      --help           See this text\n"
            "  -D,      --debug          Turn on debug\n\n" );
@@ -678,6 +682,7 @@ main( int argc, char **argv ) {
     {"suffix", required_argument, NULL, 'S'},
     {"post", required_argument, NULL, 'P'},
     {"manifest", required_argument, NULL, 'M'},
+    {"audio", no_argument, NULL, 'A'},
     {"help", no_argument, NULL, 'h'},
     {"verbose", no_argument, NULL, 'v'},
     {"debug", no_argument, NULL, 'D'},
@@ -690,7 +695,7 @@ main( int argc, char **argv ) {
   av_register_all(  );
 
   while ( ch =
-          getopt_long( argc, argv, "hvVDF:C:S:P:M:", opts, NULL ),
+          getopt_long( argc, argv, "hvAVDF:C:S:P:M:", opts, NULL ),
           ch != -1 ) {
     switch ( ch ) {
     case 'v':
@@ -698,6 +703,10 @@ main( int argc, char **argv ) {
       break;
     case 'D':
       debug++;
+      break;
+    case 'A':
+      frame_type = AVMEDIA_TYPE_AUDIO;
+      printf( "frame type = %d\n", frame_type );
       break;
     case 'V':
       printf( "%s %s\n", PROG, VERSION );
