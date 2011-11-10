@@ -654,21 +654,22 @@ tssplit( const char *input_name, const char *output_name,
 
 static void
 usage( void ) {
+  /* *INDENT-OFF* */
   fprintf( stderr, "Usage: " PROG " [options] <in.ts> <out%%03d.ts>\n\n"
            "Options:\n"
            "  -C<n>,   --chunk=<n>      Number of gops per chunk (1)\n"
            "  -F<fmt>, --format=<fmt>   Input format (see ffmpeg -formats)\n"
            "  -M<man>, --manifest=<man> Manifest file to write\n"
            "  -P<cmd>  --post=cmd       Post chunk command. These tokens may be used:\n"
-           "                              " CHUNK_NAME
-           "   chunk file name\n" "                              "
-           CHUNK_START "   chunk start frame\n"
-           "  -S<sfx>, --suffix=<sfx>   Suffix for temp files (" SUFFIX
-           ")\n" "  -A,      --audio          Split by audio frames\n"
+           "                              " CHUNK_NAME "   chunk file name\n"
+           "                              " CHUNK_START "   chunk start frame\n"
+           "  -S<sfx>, --suffix=<sfx>   Suffix for temp files (" SUFFIX ")\n"
+           "  -A,      --audio          Split by audio frames\n"
            "  -V,      --version        See version number\n"
            "  -v,      --verbose        Verbose output\n"
            "  -h,      --help           See this text\n"
            "  -D,      --debug          Turn on debug\n\n" );
+  /* *INDENT-ON* */
   exit( 1 );
 }
 
