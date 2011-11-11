@@ -707,7 +707,6 @@ main( int argc, char **argv ) {
       break;
     case 'A':
       frame_type = AVMEDIA_TYPE_AUDIO;
-      printf( "frame type = %d\n", frame_type );
       break;
     case 'V':
       printf( "%s %s\n", PROG, VERSION );
