@@ -9,7 +9,9 @@ AC_CONFIG_MACRO_DIR([m4])
 
 AC_ARG_VAR([PERL], [PROVE], [Test::Harness runner])
 
-AM_CFLAGS="-Wall -Werror -Wno-unused-function"
+AM_CFLAGS="-Wall -Werror -Wno-deprecated-declarations"
+
+
 AC_SUBST(AM_CFLAGS)
 
 # Checks for programs.
