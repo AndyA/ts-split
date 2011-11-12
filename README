@@ -7,7 +7,7 @@ into suitable chunks for use with HLS.
 
 It's based on ffmpeg and uses libavformat, libavcodec and friends to
 copy GOP (or multi-GOP) chunks. The audio and video is not re-encoded as
-it passes through ts-split.
+it passes through tssplit.
 
 http://tools.ietf.org/html/draft-pantos-http-live-streaming-04
 http://en.wikipedia.org/wiki/HTTP_Live_Streaming

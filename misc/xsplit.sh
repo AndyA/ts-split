@@ -15,7 +15,7 @@ for br in $BITRATES; do
   mkdir -p $outdir
   video="-vcodec libx264 -vpre veryfast $VIDEO"
   ffcmd="ffmpeg -f mpegts -i - $audio $video -b $br -f mpegts -"
-  tscmd="./ts-split - $outdir/%08x.ts"
+  tscmd="./tssplit - $outdir/%08x.ts"
   pipe="$pipe >( $ffcmd | $tscmd )"
   audio="$NOAUDIO"
 done

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #set -x
-STASH="$(pwd)/stash-$(date +%Y%m%d-%H%M%S)/ts-split"
+STASH="$(pwd)/stash-$(date +%Y%m%d-%H%M%S)/tssplit"
 EXT="c"
 
 function gcover() {

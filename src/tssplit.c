@@ -1,4 +1,4 @@
-/* ts-split.c */
+/* tssplit.c */
 
 #define _GNU_SOURCE
 
@@ -18,7 +18,7 @@
 #include "libavutil/avstring.h"
 #include "libavutil/avutil.h"
 
-#define PROG "ts-split"
+#define PROG "tssplit"
 #define VERSION "0.03"
 #define CHUNK 1                 /* default # gops per chunk */
 #define THREAD_COUNT 1

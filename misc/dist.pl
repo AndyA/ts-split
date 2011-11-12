@@ -160,7 +160,7 @@ sub encode_span {
     my $feeder = make_feeder( $asset, $from, $to );
 
     my @split = (
-      './ts-split', '-M', $sman, '-',
+      './tssplit', '-M', $sman, '-',
       File::Spec->catfile( $sname, '%08x.ts' )
     );
 

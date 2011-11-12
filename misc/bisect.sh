@@ -1,7 +1,7 @@
 #!/bin/sh
 
 {
-  make clean && make && ./ts-split tg.ts foo.ts
+  make clean && make && ./tssplit tg.ts foo.ts
 } >/dev/null 2>&1
 
 [ $(stat -f '%z' foo.ts) -eq $(stat -f '%z' tg.ts) ]
