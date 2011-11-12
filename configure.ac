@@ -20,6 +20,15 @@ AC_PATH_PROG([PERL], [perl])
 AC_PATH_PROG([PROVE], [prove])
 
 # Checks for libraries.
+PKG_CHECK_MODULES([DEPS], [libavcodec >= 52.112.1 \
+                           libavformat >= 52.99.0 \
+                           libavutil >= 50.38.0 \
+                           x264 >= 0.116.1913])
+#mp3lame
+#vpx
+#faac
+#swscale
+
 
 # Checks for header files.
 
