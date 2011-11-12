@@ -4,6 +4,7 @@
 *.o
 *~
 .*.swp
+.DS_Store
 .deps
 .gdb_history
 .libs
@@ -26,7 +27,6 @@ install-sh
 libtool
 ltmain.sh
 missing
-tssplit.pc
 src/rfcat
 src/tssplit
 stamp-h1
@@ -34,3 +34,4 @@ tags
 tests/basic
 tests/filename
 tests/refs
+tssplit.pc
