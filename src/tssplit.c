@@ -21,7 +21,6 @@
 #include "libavutil/avutil.h"
 
 #define PROG "tssplit"
-/*#define VERSION "0.03"*/
 #define CHUNK 1                 /* default # gops per chunk */
 #define THREAD_COUNT 1
 #define SUFFIX ".tmp"
