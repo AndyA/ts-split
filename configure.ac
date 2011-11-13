@@ -2,7 +2,7 @@ AC_PREREQ([2.67])
 AC_INIT([tssplit], [1.0.0], [andy@hexten.net])
 LT_INIT([disable-static])
 AM_INIT_AUTOMAKE
-AC_CONFIG_FILES([Makefile src/Makefile tests/Makefile tssplit.pc])
+AC_CONFIG_FILES([Makefile src/Makefile tests/Makefile])
 AC_CONFIG_SRCDIR([src/tssplit.c])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
