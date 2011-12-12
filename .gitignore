@@ -8,7 +8,7 @@
 .deps
 .gdb_history
 .libs
-Makefile
+/Makefile
 Makefile.in
 Session.vim
 TAGS
